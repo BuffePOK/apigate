@@ -1,0 +1,92 @@
+# Gemini API free-tier limits as shown in Google AI Studio (state of 2026-11-10; check AI Studio > Usage & Billing > Rate limits
+# for your own project and adjust). Apply with:  apigate load-limits presets/gemini-free.toml
+# Limits are PER API KEY (per Google project) and apply to every key you add under 'gemini'.
+#
+# WHITELIST: the "*" rule below sets rpm=0 => every Gemini model is hidden unless a rule below enables it
+# (matches AI Studio, where all other models show 0/0). Check ids with:  apigate models gemini
+
+[[rule]]
+provider = "gemini"
+pattern  = "*"
+rpm      = 0
+note     = "default: not available on this plan"
+
+[[rule]]
+provider = "gemini"
+pattern  = "gemini-3.5-flash-lite*"
+rpm = 15
+tpm = 250000
+rpd = 500
+note = "Gemini 3.5 Flash Lite"
+
+[[rule]]
+provider = "gemini"
+pattern  = "gemini-3.1-flash-lite*"
+rpm = 15
+tpm = 250000
+rpd = 500
+note = "Gemini 3.1 Flash Lite"
+
+[[rule]]
+provider = "gemini"
+pattern  = "gemini-3.8-flash*"
+rpm = 5
+tpm = 250000
+rpd = 20
+note = "Gemini 3.8 Flash"
+
+[[rule]]
+provider = "gemini"
+pattern  = "gemini-3.6-flash*"
+rpm = 5
+tpm = 250000
+rpd = 20
+note = "Gemini 3.6 Flash"
+
+[[rule]]
+provider = "gemini"
+pattern  = "gemini-3-flash*"
+rpm = 5
+tpm = 250000
+rpd = 20
+note = "Gemini 3 Flash"
+
+[[rule]]
+provider = "gemini"
+pattern  = "gemma-4-31b*"
+rpm = 30
+tpm = 16000
+rpd = 14400
+note = "Gemma 4 31B"
+
+[[rule]]
+provider = "gemini"
+pattern  = "gemma-4-26b*"
+rpm = 30
+tpm = 16000
+rpd = 14400
+note = "Gemma 4 26B"
+
+[[rule]]
+provider = "gemini"
+pattern  = "gemini-embedding-*"
+rpm = 100
+tpm = 30000
+rpd = 1000
+note = "Gemini Embedding 1/2"
+
+# not chat models (TTS / image) - AI Studio shows 0 for them on the free tier, keep them off
+[[rule]]
+provider = "gemini"
+pattern  = "gemini-3.8-flash-tts"
+rpm      = 0
+
+[[rule]]
+provider = "gemini"
+pattern  = "gemini-3.8-flash-lite-tts"
+rpm      = 0
+
+[[rule]]
+provider = "gemini"
+pattern  = "gemini-3.1-flash-lite-image"
+rpm      = 0

@@ -1,0 +1,35 @@
+# apigate in ONE container. TLS / domain routing is done by the nginx installed on the HOST (see deploy/nginx/).
+# The port is published on 127.0.0.1 only, so the gateway is never reachable from the internet directly.
+#   cp .env.example .env  (set APIGATE_MASTER_KEY, DOMAIN)  ->  docker compose up -d --build
+services:
+  apigate:
+    build: .
+    image: apigate:latest
+    container_name: apigate
+    restart: unless-stopped
+    env_file: .env
+    environment:
+      APIGATE_COOKIE_SECURE: "true"
+      APIGATE_HSTS: "true"
+      APIGATE_PUBLIC_ORIGIN: "https://${DOMAIN:-llm-apis.ans3r.eu}"
+      # host nginx reaches the container from the docker bridge gateway (172.x.x.x)
+      APIGATE_TRUSTED_PROXIES: "172.16.0.0/12"
+    ports:
+      - "127.0.0.1:${APIGATE_HOST_PORT:-18080}:8080"
+    volumes:
+      - apigate-data:/data
+    # resource ceiling for this project: 1 core, 2 GB RAM (swap disabled = same value)
+    cpus: 1.0
+    mem_limit: 2g
+    memswap_limit: 2g
+    pids_limit: 512
+    read_only: true
+    tmpfs: ["/tmp:size=64m"]
+    cap_drop: [ALL]
+    security_opt: ["no-new-privileges:true"]
+    logging:
+      driver: json-file
+      options: { max-size: "10m", max-file: "5" }
+
+volumes:
+  apigate-data:

@@ -1,0 +1,35 @@
+# --- secrets & runtime data: NEVER commit ---
+data/
+*.db
+*.db-wal
+*.db-shm
+*.db-journal
+master.key
+*.key
+*.pem
+.env
+.env.*
+!.env.example
+config.toml
+ai-credits.txt
+keys*.txt
+backups/
+*.tgz
+
+# --- python / tooling ---
+__pycache__/
+*.py[cod]
+*.egg-info/
+build/
+dist/
+.pytest_cache/
+.venv/
+venv/
+.mypy_cache/
+.ruff_cache/
+
+# --- editors / OS ---
+.idea/
+.vscode/
+.DS_Store
+Thumbs.db

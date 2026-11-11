@@ -1,0 +1,33 @@
+# Copy to config.toml and pass with --config / APIGATE_CONFIG. Any key can also be set as APIGATE_<NAME>.
+data_dir = "./data"
+host = "127.0.0.1"
+port = 8080
+
+# --- behind TLS on a server ---
+# cookie_secure = true
+# hsts = true
+# public_origin = "https://llm-apis.example.org"
+# trusted_proxies = "127.0.0.1"
+# cors_origins = ""            # comma separated origins that may call /v1 from browsers; empty = off
+
+allow_signup = false           # can also be toggled in the admin UI
+password_min_length = 12
+max_api_keys_per_user = 20
+
+# routing
+default_strategy = "round_robin"   # round_robin | random | fill | least_loaded
+fill_threshold = 0.7
+max_attempts = 4
+max_queue_wait_s = 5.0
+
+# caller throttles (0 = unlimited)
+api_key_rpm = 600
+api_key_max_concurrent = 32
+chat_user_rpm = 30
+chat_user_max_concurrent = 4
+
+# credits per 1M tokens (placeholders)
+default_price_in = 1.0
+default_price_out = 3.0
+
+# master_key = ""              # prefer the APIGATE_MASTER_KEY environment variable
