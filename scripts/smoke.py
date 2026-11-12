@@ -25,7 +25,7 @@ def check(name: str, ok: bool, detail: str = "") -> None:
 
 def main() -> int:
     ap = argparse.ArgumentParser()
-    ap.add_argument("--base", default="http://127.0.0.1:8080")
+    ap.add_argument("--base", default="http://127.0.0.1:18731")
     ap.add_argument("--key", default=os.environ.get("APIGATE_SMOKE_KEY", ""))
     ap.add_argument("--model", default="", help="model id to test (default: tries cheap models in turn until one answers)")
     a = ap.parse_args()

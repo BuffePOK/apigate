@@ -41,7 +41,8 @@ def _is_trusted(ip: str, trusted: set[str]) -> bool:
 def client_ip(request: Request) -> str:
     peer = request.client.host if request.client else ""
     trusted = gw_of(request).settings.proxies
-    if _is_trusted(peer, trusted):
+    # no peer address = connection arrived over the unix socket, which only the reverse proxy can open (file permissions)
+    if not peer or _is_trusted(peer, trusted):
         xff = [x.strip() for x in request.headers.get("x-forwarded-for", "").split(",") if x.strip()]
         for ip in reversed(xff):
             if not _is_trusted(ip, trusted):

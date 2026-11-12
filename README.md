@@ -31,7 +31,7 @@ apigate set-limit gemini "gemini-*-flash" --rpm 5 --tpm 250000 --rpd 20
 apigate set-limit gemini "gemini-*-flash-lite*" --rpm 15 --tpm 250000 --rpd 500
 apigate set-limit gemini "gemini-2.5-pro" --rpd 0          # 0 = this key cannot serve it -> hidden
 
-apigate serve --port 8080   # UI at http://127.0.0.1:8080, API at /v1
+apigate serve                # UI at http://127.0.0.1:18731, API at /v1 (default port; --port to change)
 ```
 
 Open the UI, sign in, then **Admin → Providers & keys → Refresh models** (also runs on start and every 6 h).
@@ -39,7 +39,7 @@ Everything above can also be done in the Admin UI.
 
 ```python
 from openai import OpenAI
-c = OpenAI(base_url="http://127.0.0.1:8080/v1", api_key="sk-gate-…")
+c = OpenAI(base_url="http://127.0.0.1:18731/v1", api_key="sk-gate-…")
 print([m.id for m in c.models.list()])           # gemini/gemini-2.5-flash, anthropic/claude-…, openai/gpt-…
 c.chat.completions.create(model="gemini/gemini-2.5-flash", messages=[{"role": "user", "content": "hi"}], stream=True)
 ```
@@ -98,20 +98,17 @@ Prices (credits per 1M tokens, Admin → Routing) are placeholders (1 in / 3 out
 
 Settings: `config.example.toml`, or `APIGATE_<NAME>` environment variables.
 
-## Docker / VPS (one container + nginx on the host)
+## Deployment
 
-The container is limited to 1 CPU / 2 GB and listens on `127.0.0.1:18080` only; TLS and domain routing are done by the host's nginx
-(config in `deploy/nginx/`). Step-by-step guide (Polish): [`docs/TUTORIAL.pl.md`](docs/TUTORIAL.pl.md).
+Recommended (several projects on one host): **rootless Podman + systemd socket activation + one shared nginx**, one Linux user per project.
+systemd owns two listening sockets and hands them to the container (`apigate serve --fd 3 --fd 4`): a unix socket that only nginx can open, and
+`127.0.0.1:18731` that every local project may use (API key required). A GitHub Actions workflow (`deploy/ci.yml`) publishes an image to `ghcr.io` only after the tests pass, and
+`podman auto-update` on the server rolls it out; requests arriving during the swap wait on the socket instead of failing.
+Files: `deploy/podman/` (Quadlet unit, socket, env), `deploy/nginx/`. Step-by-step guide (Polish): [`docs/TUTORIAL.pl.md`](docs/TUTORIAL.pl.md).
 
-```bash
-cp .env.example .env     # set DOMAIN and APIGATE_MASTER_KEY
-docker compose up -d --build
-docker compose exec apigate apigate create-admin <name>
-python scripts/smoke.py --base https://$DOMAIN --key sk-gate-...
-```
+Simple alternative (single app, Docker): `cp .env.example .env && docker compose up -d` publishes `127.0.0.1:18731` (put nginx/Caddy in front).
 
-Data (SQLite + usage history) lives in the `apigate-data` volume - back it up together with `APIGATE_MASTER_KEY`.
-Transient upstream 5xx ("high demand") are retried on the same key before failing over.
+Data (SQLite) lives in the `/data` volume; `apigate backup` writes a consistent copy to `/data/backups`. Back up the master key separately.
 
 ## Tests
 

@@ -15,7 +15,7 @@ services:
       # host nginx reaches the container from the docker bridge gateway (172.x.x.x)
       APIGATE_TRUSTED_PROXIES: "172.16.0.0/12"
     ports:
-      - "127.0.0.1:${APIGATE_HOST_PORT:-18080}:8080"
+      - "127.0.0.1:${APIGATE_HOST_PORT:-18731}:18080"
     volumes:
       - apigate-data:/data
     # resource ceiling for this project: 1 core, 2 GB RAM (swap disabled = same value)

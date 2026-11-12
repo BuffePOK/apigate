@@ -15,7 +15,7 @@ from pathlib import Path
 class Settings:
     data_dir: str = "./data"
     host: str = "127.0.0.1"
-    port: int = 8080
+    port: int = 18731                     # deliberately not 8080/8000/3000 (those collide with everything)
 
     # --- web / security -------------------------------------------------
     allow_signup: bool = False            # default; editable at runtime by admin

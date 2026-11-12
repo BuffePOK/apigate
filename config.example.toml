@@ -1,7 +1,7 @@
 # Copy to config.toml and pass with --config / APIGATE_CONFIG. Any key can also be set as APIGATE_<NAME>.
 data_dir = "./data"
 host = "127.0.0.1"
-port = 8080
+port = 18731
 
 # --- behind TLS on a server ---
 # cookie_secure = true

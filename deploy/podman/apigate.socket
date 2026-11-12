@@ -1,0 +1,20 @@
+# ~/.config/systemd/user/apigate.socket   (rootless, owned by the project's Linux user)
+# systemd owns the listening sockets, so they survive container restarts: requests that arrive while the
+# container is being replaced wait in the kernel queue instead of failing.
+[Unit]
+Description=apigate listening sockets
+
+[Socket]
+# 1) unix socket for the shared nginx: owner = this user, group = this user's own group (www-data is a member of that
+#    group only) - nobody else on the machine can connect
+ListenStream=/srv/apps/apigate/run/apigate.sock
+SocketMode=0660
+DirectoryMode=0750
+# 2) loopback TCP for OTHER projects/users on this machine (open to every local process; every call still needs an
+#    sk-gate- API key). Pick any free port; change it here, nowhere else. Remove this line to close local access.
+ListenStream=127.0.0.1:18731
+Backlog=1024
+Service=apigate.service
+
+[Install]
+WantedBy=sockets.target

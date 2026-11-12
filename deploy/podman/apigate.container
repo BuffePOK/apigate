@@ -1,0 +1,42 @@
+# ~/.config/containers/systemd/apigate.container   (Quadlet, rootless Podman)
+# Replace OWNER with your GitHub login in lowercase.
+[Unit]
+Description=apigate (OpenAI-compatible gateway)
+Requires=apigate.socket
+After=apigate.socket network-online.target
+
+[Container]
+ContainerName=apigate
+Image=ghcr.io/OWNER/apigate:latest
+# CD: `podman auto-update` (timer) pulls a newer :latest from the registry and restarts this unit
+AutoUpdate=registry
+# systemd passes both listening sockets (fd 3 = unix socket, fd 4 = 127.0.0.1:18731); 127.0.0.1:18080 exists only INSIDE the
+# container's own network namespace (health check), so it can never collide with anything on the host
+Exec=serve --fd 3 --fd 4 --health-port 18080 --graceful-timeout 120
+EnvironmentFile=/home/apigate/apigate.env
+Volume=apigate-data:/data
+
+# hardening
+ReadOnly=true
+Tmpfs=/tmp:size=64m
+DropCapability=ALL
+NoNewPrivileges=true
+PodmanArgs=--pids-limit=512 --cpus=1 --memory=2g --memory-swap=2g
+
+# container is "started" for systemd only when it is healthy -> a broken update is rolled back automatically
+Notify=healthy
+HealthCmd=python -c "import urllib.request,sys; sys.exit(0 if urllib.request.urlopen('http://127.0.0.1:18080/healthz',timeout=4).status==200 else 1)"
+HealthInterval=30s
+HealthTimeout=5s
+HealthRetries=3
+HealthStartPeriod=20s
+StopTimeout=130
+
+[Service]
+Restart=always
+RestartSec=2
+TimeoutStartSec=120
+TimeoutStopSec=140
+
+[Install]
+WantedBy=default.target

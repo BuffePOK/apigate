@@ -1,4 +1,4 @@
-"""Command line: apigate init | create-admin | add-key | import-keys | refresh-models | set-limit | grant | status | serve"""
+"""Command line: apigate init | create-admin | add-key | import-keys | refresh-models | set-limit | load-limits | models | grant | status | backup | serve"""
 from __future__ import annotations
 
 import argparse
@@ -32,6 +32,29 @@ async def _with_gateway(settings: Settings, fn):
         return await fn(gw)
     finally:
         await gw.stop()
+
+
+def _bind_uds(path: str, mode: int):
+    """Create a unix listening socket with exact permissions (owner+group by default, never world)."""
+    import os
+    import socket
+    import stat
+    from pathlib import Path
+    p = Path(path)
+    p.parent.mkdir(parents=True, exist_ok=True)
+    if p.is_symlink() or p.exists():
+        if p.is_symlink() or not stat.S_ISSOCK(p.lstat().st_mode):
+            raise SystemExit(f"{path} exists and is not a socket - refusing to remove it")
+        p.unlink()                                   # stale socket from a crashed run
+    s = socket.socket(socket.AF_UNIX, socket.SOCK_STREAM)
+    old = os.umask(0o177)
+    try:
+        s.bind(str(p))
+    finally:
+        os.umask(old)
+    os.chmod(p, mode)
+    s.listen(1024)
+    return s
 
 
 def main(argv: list[str] | None = None) -> int:
@@ -71,6 +94,13 @@ def main(argv: list[str] | None = None) -> int:
     a = sub.add_parser("serve", help="run the HTTP server")
     a.add_argument("--host")
     a.add_argument("--port", type=int)
+    a.add_argument("--uds", metavar="PATH", help="listen on a unix socket instead of TCP (mode --uds-mode); nginx on the same host talks to it")
+    a.add_argument("--uds-mode", default="660", help="octal permissions of the unix socket (default 660)")
+    a.add_argument("--fd", type=int, metavar="N", action="append", help="serve on an already-open listening socket inherited as file descriptor N (systemd socket activation: 3); repeat for several sockets (e.g. --fd 3 --fd 4)")
+    a.add_argument("--health-port", type=int, metavar="PORT", help="with --uds/--fd: additionally listen on 127.0.0.1:PORT (for container health checks)")
+    a.add_argument("--graceful-timeout", type=int, default=120, help="seconds in-flight requests/streams may take to finish on shutdown (default 120)")
+    a = sub.add_parser("backup", help="consistent online backup of the database into <data_dir>/backups")
+    a.add_argument("--keep", type=int, default=14, help="how many backups to keep")
 
     args = p.parse_args(argv)
     settings = Settings.load(args.config)
@@ -204,18 +234,50 @@ def main(argv: list[str] | None = None) -> int:
         asyncio.run(_with_gateway(settings, f))
         return 0
 
+    if args.cmd == "backup":
+        import sqlite3
+        import time as _t
+        src = settings.db_path
+        dest_dir = settings.data_path / "backups"
+        dest_dir.mkdir(parents=True, exist_ok=True)
+        dest = dest_dir / f"gate-{_t.strftime('%Y%m%d-%H%M%S')}.db"
+        a_, b_ = sqlite3.connect(src), sqlite3.connect(dest)
+        with b_:
+            a_.backup(b_)
+        a_.close(); b_.close()
+        dest.chmod(0o600)
+        for old_ in sorted(dest_dir.glob("gate-*.db"))[:-max(1, args.keep)]:
+            old_.unlink()
+        print(f"backup written: {dest}  (the master key is NOT included - keep it separately)")
+        return 0
+
     if args.cmd == "serve":
         import uvicorn
 
         from .core import Gateway
         from .server import create_app
 
-        host, port = args.host or settings.host, args.port or settings.port
         app = create_app(Gateway(settings))
-        if host not in ("127.0.0.1", "localhost", "::1") and not settings.cookie_secure:
-            logging.getLogger("apigate").warning("listening on %s without cookie_secure: put TLS in front and set APIGATE_COOKIE_SECURE=true", host)
+        log = logging.getLogger("apigate")
         # one process on purpose: limit counters live in memory (see README "Scaling")
-        uvicorn.run(app, host=host, port=port, workers=1, proxy_headers=False, server_header=False, access_log=False, log_config=None)
+        common = dict(proxy_headers=False, server_header=False, access_log=False, log_config=None, timeout_graceful_shutdown=args.graceful_timeout)
+        if args.fd or args.uds:
+            import socket
+            socks = [socket.socket(fileno=n) for n in args.fd] if args.fd else [_bind_uds(args.uds, int(args.uds_mode, 8))]
+            if args.health_port:
+                hs = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
+                hs.setsockopt(socket.SOL_SOCKET, socket.SO_REUSEADDR, 1)
+                hs.bind(("127.0.0.1", args.health_port))
+                hs.listen(128)
+                socks.append(hs)
+            # fd= only makes uvicorn print "running on socket"; the sockets themselves are passed to run()
+            server = uvicorn.Server(uvicorn.Config(app, fd=socks[0].fileno(), **common))
+            server.run(sockets=socks)
+            return 0
+        host, port = args.host or settings.host, args.port or settings.port
+        if host not in ("127.0.0.1", "localhost", "::1") and not settings.cookie_secure:
+            log.warning("listening on %s without cookie_secure: put TLS in front and set APIGATE_COOKIE_SECURE=true", host)
+        uvicorn.run(app, host=host, port=port, workers=1, **common)
         return 0
     return 2
 
