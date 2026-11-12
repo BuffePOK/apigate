@@ -48,9 +48,10 @@ jobs:
       - name: Smoke test
         run: |
           KEY=$(docker run --rm --entrypoint python apigate:ci -c "from apigate.crypto import Vault; print(Vault.generate_master())")
-          docker run -d --name t -e APIGATE_MASTER_KEY="$KEY" -p 18080:18080 apigate:ci
+          docker run -d --name apigate-ci -e APIGATE_MASTER_KEY="$KEY" -p 18080:18080 apigate:ci
           for i in $(seq 1 30); do curl -fs http://127.0.0.1:18080/healthz && break; sleep 1; done
-          curl -fs http://127.0.0.1:18080/healthz | grep -q '"ok":true' || { docker logs t; exit 1; }
+          curl -fs http://127.0.0.1:18080/healthz | grep -q '"ok":true' || { docker logs apigate-ci; exit 1; }
+          docker rm -f apigate-ci
       - name: Push
         uses: docker/build-push-action@v6
         with:
