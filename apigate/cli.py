@@ -99,10 +99,20 @@ def main(argv: list[str] | None = None) -> int:
     a.add_argument("--fd", type=int, metavar="N", action="append", help="serve on an already-open listening socket inherited as file descriptor N (systemd socket activation: 3); repeat for several sockets (e.g. --fd 3 --fd 4)")
     a.add_argument("--health-port", type=int, metavar="PORT", help="with --uds/--fd: additionally listen on 127.0.0.1:PORT (for container health checks)")
     a.add_argument("--graceful-timeout", type=int, default=120, help="seconds in-flight requests/streams may take to finish on shutdown (default 120)")
+    a = sub.add_parser("healthcheck", help="exit 0 if the local server answers /healthz (for container health checks; no quoting needed)")
+    a.add_argument("--port", type=int, default=18080)
+    a.add_argument("--timeout", type=float, default=4.0)
     a = sub.add_parser("backup", help="consistent online backup of the database into <data_dir>/backups")
     a.add_argument("--keep", type=int, default=14, help="how many backups to keep")
 
     args = p.parse_args(argv)
+    if args.cmd == "healthcheck":
+        import urllib.request
+        try:
+            with urllib.request.urlopen(f"http://127.0.0.1:{args.port}/healthz", timeout=args.timeout) as r:
+                return 0 if r.status == 200 else 1
+        except Exception:  # noqa: BLE001
+            return 1
     settings = Settings.load(args.config)
     _setup_logging(settings.log_level)
 

@@ -25,7 +25,7 @@ PodmanArgs=--pids-limit=512 --cpus=1 --memory=2g --memory-swap=2g
 
 # container is "started" for systemd only when it is healthy -> a broken update is rolled back automatically
 Notify=healthy
-HealthCmd=python -c "import urllib.request,sys; sys.exit(0 if urllib.request.urlopen('http://127.0.0.1:18080/healthz',timeout=4).status==200 else 1)"
+HealthCmd=apigate healthcheck --port 18080
 HealthInterval=30s
 HealthTimeout=5s
 HealthRetries=3
