@@ -141,3 +141,25 @@ def test_two_inherited_sockets_unix_for_proxy_and_loopback_tcp_for_local_apps(tm
         p.wait(15)
         u.close()
         t.close()
+
+
+def test_healthcheck_command_exit_codes():
+    import threading
+    from http.server import BaseHTTPRequestHandler, HTTPServer
+    from apigate.cli import main
+
+    class H(BaseHTTPRequestHandler):
+        def do_GET(self):
+            self.send_response(200)
+            self.end_headers()
+            self.wfile.write(b'{"ok":true}')
+
+        def log_message(self, *a):
+            pass
+    srv = HTTPServer(("127.0.0.1", 0), H)
+    threading.Thread(target=srv.serve_forever, daemon=True).start()
+    try:
+        assert main(["healthcheck", "--port", str(srv.server_port)]) == 0
+    finally:
+        srv.shutdown()
+    assert main(["healthcheck", "--port", str(_free_port()), "--timeout", "1"]) == 1

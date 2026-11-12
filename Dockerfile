@@ -16,6 +16,6 @@ USER apigate
 VOLUME /data
 EXPOSE 18080
 HEALTHCHECK --interval=30s --timeout=5s --start-period=15s \
-  CMD python -c "import urllib.request,sys; sys.exit(0 if urllib.request.urlopen('http://127.0.0.1:18080/healthz',timeout=4).status==200 else 1)"
+  CMD ["apigate", "healthcheck", "--port", "18080"]
 ENTRYPOINT ["apigate"]
 CMD ["serve"]
